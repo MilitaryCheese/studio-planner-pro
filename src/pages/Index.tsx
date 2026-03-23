@@ -1,16 +1,67 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type Settings, type ScheduledProject, DEFAULT_SETTINGS } from "@/lib/types";
+import CalculatorTab from "@/components/CalculatorTab";
+import SettingsTab from "@/components/SettingsTab";
+import ProjectionTab from "@/components/ProjectionTab";
+import QuarterlyPlanTab from "@/components/QuarterlyPlanTab";
+import { Calculator, Settings2, TrendingUp, CalendarDays } from "lucide-react";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+export default function Index() {
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [projects, setProjects] = useState<ScheduledProject[]>([]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container max-w-5xl flex items-center justify-between h-14 px-4">
+          <h1 className="text-lg font-bold tracking-tight">Studio Planner</h1>
+          <span className="text-xs text-muted-foreground mono">
+            ${settings.hourlyRate}/hr
+          </span>
+        </div>
+      </header>
+
+      <main className="container max-w-5xl px-4 py-8">
+        <Tabs defaultValue="calculator" className="space-y-6">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+            <TabsTrigger value="calculator" className="gap-1.5 text-xs sm:text-sm">
+              <Calculator className="h-4 w-4" />
+              <span className="hidden sm:inline">Calculator</span>
+            </TabsTrigger>
+            <TabsTrigger value="projection" className="gap-1.5 text-xs sm:text-sm">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Projection</span>
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-1.5 text-xs sm:text-sm">
+              <CalendarDays className="h-4 w-4" />
+              <span className="hidden sm:inline">Plan</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm">
+              <Settings2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calculator">
+            <CalculatorTab settings={settings} />
+          </TabsContent>
+          <TabsContent value="projection">
+            <ProjectionTab settings={settings} />
+          </TabsContent>
+          <TabsContent value="plan">
+            <QuarterlyPlanTab
+              settings={settings}
+              projects={projects}
+              onProjectsChange={setProjects}
+            />
+          </TabsContent>
+          <TabsContent value="settings">
+            <SettingsTab settings={settings} onUpdate={setSettings} />
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}
