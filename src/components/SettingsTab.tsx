@@ -4,15 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { type Settings, type AddOn, type ProjectType } from "@/lib/types";
+import { type Settings, type AddOn, type ProjectType, type ScheduledProject } from "@/lib/types";
 import { Settings2, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 
 interface Props {
   settings: Settings;
   onUpdate: (s: Settings) => void;
+  projects: ScheduledProject[];
+  onProjectsChange: (p: ScheduledProject[]) => void;
 }
 
-export default function SettingsTab({ settings, onUpdate }: Props) {
+export default function SettingsTab({ settings, onUpdate, projects, onProjectsChange }: Props) {
   const [newName, setNewName] = useState("");
   const [newYourHrs, setNewYourHrs] = useState(4);
   const [newJuniorHrs, setNewJuniorHrs] = useState(8);
@@ -95,6 +97,34 @@ export default function SettingsTab({ settings, onUpdate }: Props) {
     });
     setEditingKey(null);
     setEditForm({});
+  };
+
+  const exportData = () => {
+    const data = { settings, projects };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'studio-planner-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.settings) onUpdate(data.settings);
+        if (data.projects) onProjectsChange(data.projects);
+        alert('Data imported successfully!');
+      } catch (error) {
+        alert('Failed to import data. Please check the file format.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -334,6 +364,21 @@ export default function SettingsTab({ settings, onUpdate }: Props) {
           <Button onClick={addCustomAddon} size="icon" className="h-9 w-9">
             <Plus className="h-4 w-4" />
           </Button>
+        </div>
+      </Card>
+
+      {/* Data Management */}
+      <Card className="p-5 space-y-4">
+        <h3 className="font-semibold">Data Management</h3>
+        <p className="text-sm text-muted-foreground">Export your settings and projects as a JSON file, or import to restore from a backup.</p>
+        <div className="flex gap-2">
+          <Button onClick={exportData}>Export Data</Button>
+          <label>
+            <Button asChild>
+              <span>Import Data</span>
+            </Button>
+            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
+          </label>
         </div>
       </Card>
     </div>

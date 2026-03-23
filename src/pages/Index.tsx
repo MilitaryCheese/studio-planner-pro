@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Settings, type ScheduledProject, DEFAULT_SETTINGS } from "@/lib/types";
 import CalculatorTab from "@/components/CalculatorTab";
@@ -10,6 +10,37 @@ import { Calculator, Settings2, TrendingUp, CalendarDays } from "lucide-react";
 export default function Index() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [projects, setProjects] = useState<ScheduledProject[]>([]);
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('studio-planner-settings');
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (error) {
+        console.error('Failed to load settings from localStorage:', error);
+      }
+    }
+
+    const savedProjects = localStorage.getItem('studio-planner-projects');
+    if (savedProjects) {
+      try {
+        setProjects(JSON.parse(savedProjects));
+      } catch (error) {
+        console.error('Failed to load projects from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('studio-planner-settings', JSON.stringify(settings));
+  }, [settings]);
+
+  // Save projects to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('studio-planner-projects', JSON.stringify(projects));
+  }, [projects]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,7 +89,7 @@ export default function Index() {
             />
           </TabsContent>
           <TabsContent value="settings">
-            <SettingsTab settings={settings} onUpdate={setSettings} />
+            <SettingsTab settings={settings} onUpdate={setSettings} projects={projects} onProjectsChange={setProjects} />
           </TabsContent>
         </Tabs>
       </main>
