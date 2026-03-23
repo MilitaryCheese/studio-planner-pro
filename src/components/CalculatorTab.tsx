@@ -1,34 +1,34 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { PROJECT_TYPES, DEFAULT_ADDONS, type AddOn, type Settings } from "@/lib/types";
-import { Calculator, Plus, DollarSign } from "lucide-react";
+import { DEFAULT_ADDONS, type Settings } from "@/lib/types";
+import { Calculator } from "lucide-react";
 
 interface Props {
   settings: Settings;
 }
 
 export default function CalculatorTab({ settings }: Props) {
-  const [selectedType, setSelectedType] = useState("flagship");
+  const [selectedType, setSelectedType] = useState(settings.projectTypes[0]?.key ?? "");
   const [customHours, setCustomHours] = useState(20);
   const [customDuration, setCustomDuration] = useState(5);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
   const allAddons = [...DEFAULT_ADDONS, ...settings.customAddons];
+  const projectType = settings.projectTypes.find((t) => t.key === selectedType);
 
-  const projectType = PROJECT_TYPES.find((t) => t.key === selectedType)!;
+  const isCustom = projectType?.basePrice === null;
 
   const basePrice = useMemo(() => {
-    if (selectedType === "custom") return customHours * settings.hourlyRate;
+    if (!projectType) return 0;
+    if (isCustom) return customHours * settings.hourlyRate;
     return projectType.basePrice!;
-  }, [selectedType, customHours, settings.hourlyRate, projectType]);
+  }, [projectType, isCustom, customHours, settings.hourlyRate]);
 
-  const yourHours = selectedType === "custom" ? customHours : projectType.yourHours;
-  const duration = selectedType === "custom" ? customDuration : projectType.duration;
+  const yourHours = isCustom ? customHours : (projectType?.yourHours ?? 0);
+  const duration = isCustom ? customDuration : (projectType?.duration ?? 0);
 
   const addonTotal = useMemo(() => {
     return selectedAddons.reduce((sum, name) => {
@@ -66,7 +66,7 @@ export default function CalculatorTab({ settings }: Props) {
 
       {/* Project Type Selector */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {PROJECT_TYPES.map((type) => (
+        {settings.projectTypes.map((type) => (
           <button
             key={type.key}
             onClick={() => setSelectedType(type.key)}
@@ -77,17 +77,16 @@ export default function CalculatorTab({ settings }: Props) {
             }`}
           >
             <span className="font-semibold text-sm">{type.label}</span>
-            {type.basePrice && (
+            {type.basePrice !== null && (
               <span className="block mono text-lg mt-1 text-primary font-medium">
                 ${type.basePrice.toLocaleString()}
               </span>
             )}
-            {type.key !== "custom" && (
+            {type.basePrice !== null ? (
               <span className="block text-xs text-muted-foreground mt-1">
                 {type.duration}d · {type.yourHours}h · {type.yourPercent}%
               </span>
-            )}
-            {type.key === "custom" && (
+            ) : (
               <span className="block text-xs text-muted-foreground mt-1">
                 You define
               </span>
@@ -97,7 +96,7 @@ export default function CalculatorTab({ settings }: Props) {
       </div>
 
       {/* Custom fields */}
-      {selectedType === "custom" && (
+      {isCustom && (
         <Card className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -162,7 +161,7 @@ export default function CalculatorTab({ settings }: Props) {
             <h3 className="font-semibold text-lg">Quote Summary</h3>
             <div className="mt-3 space-y-1 text-sm">
               <div className="flex justify-between gap-8">
-                <span className="text-muted-foreground">Base ({projectType.label})</span>
+                <span className="text-muted-foreground">Base ({projectType?.label ?? "—"})</span>
                 <span className="mono font-medium">${basePrice.toLocaleString()}</span>
               </div>
               {addonTotal > 0 && (

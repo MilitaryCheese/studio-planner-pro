@@ -1,9 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { type Settings, PROJECT_TYPES } from "@/lib/types";
+import { type Settings } from "@/lib/types";
 import { TrendingUp } from "lucide-react";
 
 interface ScenarioRow {
@@ -16,11 +15,22 @@ interface Props {
 }
 
 export default function ProjectionTab({ settings }: Props) {
-  const [scenarios, setScenarios] = useState<ScenarioRow[]>([
-    { type: "flagship", count: 2 },
-    { type: "2day", count: 3 },
-    { type: "1day", count: 2 },
-  ]);
+  const [scenarios, setScenarios] = useState<ScenarioRow[]>(() =>
+    settings.projectTypes
+      .filter((t) => t.basePrice !== null)
+      .map((t) => ({ type: t.key, count: 2 }))
+  );
+
+  // Sync scenarios when project types change
+  useEffect(() => {
+    setScenarios((prev) => {
+      const typesWithPrice = settings.projectTypes.filter((t) => t.basePrice !== null);
+      return typesWithPrice.map((t) => {
+        const existing = prev.find((s) => s.type === t.key);
+        return existing ?? { type: t.key, count: 0 };
+      });
+    });
+  }, [settings.projectTypes]);
 
   const updateCount = (index: number, count: number) => {
     setScenarios((prev) => prev.map((s, i) => (i === index ? { ...s, count } : s)));
@@ -32,18 +42,18 @@ export default function ProjectionTab({ settings }: Props) {
     let totalDays = 0;
 
     scenarios.forEach((s) => {
-      const type = PROJECT_TYPES.find((t) => t.key === s.type);
+      const type = settings.projectTypes.find((t) => t.key === s.type);
       if (!type || !type.basePrice) return;
       totalRevenue += type.basePrice * s.count;
       totalHours += type.yourHours * s.count;
       totalDays += type.duration * s.count;
     });
 
-    const workingDaysInQuarter = 65; // ~13 weeks × 5 days
+    const workingDaysInQuarter = 65;
     const utilization = totalDays / workingDaysInQuarter;
 
     return { totalRevenue, totalHours, totalDays, utilization, workingDaysInQuarter };
-  }, [scenarios]);
+  }, [scenarios, settings.projectTypes]);
 
   const utilizationColor =
     projection.utilization > 0.9
@@ -68,7 +78,8 @@ export default function ProjectionTab({ settings }: Props) {
         <h3 className="font-semibold mb-4">Scenario Builder</h3>
         <div className="space-y-3">
           {scenarios.map((s, i) => {
-            const type = PROJECT_TYPES.find((t) => t.key === s.type)!;
+            const type = settings.projectTypes.find((t) => t.key === s.type);
+            if (!type) return null;
             const lineRevenue = (type.basePrice ?? 0) * s.count;
             return (
               <div key={s.type} className="flex items-center gap-4">
@@ -92,7 +103,6 @@ export default function ProjectionTab({ settings }: Props) {
         </div>
       </Card>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <span className="text-xs text-muted-foreground uppercase tracking-wide">Revenue</span>

@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Settings, type ScheduledProject, PROJECT_TYPES } from "@/lib/types";
-import { findNextAvailableStart, getQuarterRange, getBusinessDaysInRange, formatDate } from "@/lib/scheduler";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { type Settings, type ScheduledProject } from "@/lib/types";
+import { findNextAvailableStart, getQuarterRange, getBusinessDaysInRange, formatDate, getMonthsInQuarter } from "@/lib/scheduler";
 import { CalendarDays, Plus, Trash2, AlertTriangle } from "lucide-react";
+import MonthCalendar from "./MonthCalendar";
 
 interface Props {
   settings: Settings;
@@ -17,9 +19,10 @@ interface Props {
 
 export default function QuarterlyPlanTab({ settings, projects, onProjectsChange }: Props) {
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState("flagship");
+  const [newType, setNewType] = useState(settings.projectTypes[0]?.key ?? "");
   const [preferredStart, setPreferredStart] = useState("");
   const [notes, setNotes] = useState("");
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const now = new Date();
   const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
@@ -29,6 +32,7 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
 
   const qRange = useMemo(() => getQuarterRange(year, quarter), [year, quarter]);
   const totalBusinessDays = useMemo(() => getBusinessDaysInRange(qRange.start, qRange.end), [qRange]);
+  const months = useMemo(() => getMonthsInQuarter(year, quarter), [year, quarter]);
 
   const quarterProjects = useMemo(
     () => projects.filter((p) => p.startDate <= qRange.end && p.endDate >= qRange.start),
@@ -45,20 +49,31 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
     [quarterProjects]
   );
 
-  const utilization = bookedDays / totalBusinessDays;
+  const utilization = totalBusinessDays > 0 ? bookedDays / totalBusinessDays : 0;
 
   const addProject = () => {
     if (!newName.trim()) return;
-    const type = PROJECT_TYPES.find((t) => t.key === newType)!;
-    const duration = type.key === "custom" ? 5 : type.duration;
-    const hours = type.key === "custom" ? 20 : type.yourHours;
+    setScheduleError(null);
+
+    const type = settings.projectTypes.find((t) => t.key === newType);
+    if (!type) return;
+
+    const duration = type.basePrice === null && type.duration === 0 ? 5 : type.duration;
+    const hours = type.basePrice === null && type.yourHours === 0 ? 20 : type.yourHours;
     const price = type.basePrice ?? hours * settings.hourlyRate;
 
-    const { startDate, endDate } = findNextAvailableStart(
+    const result = findNextAvailableStart(
       projects,
       duration,
+      settings.projectTypes,
+      newType,
       preferredStart || undefined
     );
+
+    if (!result) {
+      setScheduleError(`Could not find an available slot for "${newName.trim()}". All dates within the next year are booked. Try a different preferred start date or remove existing projects.`);
+      return;
+    }
 
     const project: ScheduledProject = {
       id: Date.now().toString(),
@@ -69,8 +84,8 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
       price,
       preferredStart: preferredStart || undefined,
       notes: notes || undefined,
-      startDate,
-      endDate,
+      startDate: result.startDate,
+      endDate: result.endDate,
     };
 
     onProjectsChange([...projects, project]);
@@ -83,36 +98,18 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
     onProjectsChange(projects.filter((p) => p.id !== id));
   };
 
-  // Simple calendar grid for the quarter
-  const calendarWeeks = useMemo(() => {
-    const start = new Date(qRange.start + "T00:00:00");
-    const end = new Date(qRange.end + "T00:00:00");
-
-    // Adjust start to Monday
-    while (start.getDay() !== 1) start.setDate(start.getDate() - 1);
-
-    const weeks: Date[][] = [];
-    const current = new Date(start);
-    while (current <= end || weeks.length === 0) {
-      const week: Date[] = [];
-      for (let d = 0; d < 7; d++) {
-        week.push(new Date(current));
-        current.setDate(current.getDate() + 1);
-      }
-      weeks.push(week);
-    }
-    return weeks;
-  }, [qRange]);
-
-  const projectOnDate = (dateStr: string) =>
-    quarterProjects.find((p) => dateStr >= p.startDate && dateStr <= p.endDate);
-
-  const typeColors: Record<string, string> = {
-    flagship: "bg-primary/20 text-primary",
-    "2day": "bg-accent/20 text-accent-foreground",
-    "1day": "bg-success/20 text-success",
-    custom: "bg-secondary text-secondary-foreground",
-  };
+  const typeColors: Record<string, string> = {};
+  const colorPalette = [
+    "bg-primary/20 text-primary",
+    "bg-accent/20 text-accent-foreground",
+    "bg-success/20 text-success",
+    "bg-secondary text-secondary-foreground",
+    "bg-destructive/10 text-destructive",
+    "bg-primary/10 text-primary",
+  ];
+  settings.projectTypes.forEach((pt, i) => {
+    typeColors[pt.key] = colorPalette[i % colorPalette.length];
+  });
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -180,6 +177,12 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
       {/* Add Project Form */}
       <Card className="p-5 space-y-4">
         <h3 className="font-semibold">Schedule a Project</h3>
+        {scheduleError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{scheduleError}</AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <Label>Project Name</Label>
@@ -192,7 +195,7 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PROJECT_TYPES.map((t) => (
+                {settings.projectTypes.map((t) => (
                   <SelectItem key={t.key} value={t.key}>
                     {t.label}
                   </SelectItem>
@@ -216,60 +219,29 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
         </div>
       </Card>
 
-      {/* Calendar */}
-      <Card className="p-5 overflow-x-auto">
-        <h3 className="font-semibold mb-3">
-          Q{quarter} {year} Calendar
-        </h3>
-        <div className="min-w-[600px]">
-          <div className="grid grid-cols-7 text-xs text-muted-foreground font-medium mb-1">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-              <div key={d} className="text-center py-1">
-                {d}
-              </div>
-            ))}
-          </div>
-          {calendarWeeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7">
-              {week.map((day, di) => {
-                const dateStr = formatDate(day);
-                const inQuarter = dateStr >= qRange.start && dateStr <= qRange.end;
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                const project = !isWeekend ? projectOnDate(dateStr) : undefined;
-                const isToday = dateStr === formatDate(new Date());
-
-                return (
-                  <div
-                    key={di}
-                    className={`relative h-10 flex items-center justify-center text-xs border-t transition-colors ${
-                      !inQuarter
-                        ? "text-muted-foreground/30"
-                        : isWeekend
-                        ? "bg-muted/50 text-muted-foreground/50"
-                        : project
-                        ? typeColors[project.type] || "bg-secondary"
-                        : "hover:bg-secondary/50"
-                    } ${isToday ? "ring-2 ring-primary ring-inset rounded-sm" : ""}`}
-                    title={project ? `${project.name} (${project.type})` : dateStr}
-                  >
-                    {day.getDate()}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+      {/* Monthly Calendars */}
+      <div className="space-y-4">
+        {months.map((month) => (
+          <MonthCalendar
+            key={month.name}
+            month={month}
+            projects={quarterProjects}
+            typeColors={typeColors}
+            projectTypes={settings.projectTypes}
+          />
+        ))}
 
         {/* Legend */}
-        <div className="flex gap-4 mt-3 flex-wrap">
-          {PROJECT_TYPES.map((t) => (
+        <div className="flex gap-4 flex-wrap px-1">
+          {settings.projectTypes.map((t) => (
             <div key={t.key} className="flex items-center gap-1.5 text-xs">
               <div className={`w-3 h-3 rounded-sm ${typeColors[t.key]}`} />
               {t.label}
+              {t.isIntensive && <span className="text-muted-foreground">(can overlap)</span>}
             </div>
           ))}
         </div>
-      </Card>
+      </div>
 
       {/* Project List */}
       {quarterProjects.length > 0 && (
@@ -298,7 +270,7 @@ export default function QuarterlyPlanTab({ settings, projects, onProjectsChange 
                     )}
                   </div>
                   <Badge variant="secondary" className="text-xs shrink-0">
-                    {PROJECT_TYPES.find((t) => t.key === p.type)?.label}
+                    {settings.projectTypes.find((t) => t.key === p.type)?.label ?? p.type}
                   </Badge>
                   <Button
                     variant="ghost"

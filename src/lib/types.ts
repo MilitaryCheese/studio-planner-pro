@@ -5,6 +5,7 @@ export interface ProjectType {
   yourHours: number;
   yourPercent: number;
   basePrice: number | null; // null = calculated
+  isIntensive: boolean; // can overlap with other projects
 }
 
 export interface AddOn {
@@ -30,13 +31,14 @@ export interface Settings {
   hourlyRate: number;
   juniorCost: number;
   customAddons: AddOn[];
+  projectTypes: ProjectType[];
 }
 
-export const PROJECT_TYPES: ProjectType[] = [
-  { key: "flagship", label: "Flagship", duration: 21, yourHours: 61.6, yourPercent: 70, basePrice: 8000 },
-  { key: "2day", label: "2-Day Intensive", duration: 2, yourHours: 12, yourPercent: 75, basePrice: 3500 },
-  { key: "1day", label: "1-Day Intensive", duration: 1, yourHours: 6, yourPercent: 75, basePrice: 2000 },
-  { key: "custom", label: "Custom", duration: 0, yourHours: 0, yourPercent: 75, basePrice: null },
+export const DEFAULT_PROJECT_TYPES: ProjectType[] = [
+  { key: "flagship", label: "Flagship", duration: 21, yourHours: 61.6, yourPercent: 70, basePrice: 8000, isIntensive: false },
+  { key: "2day", label: "2-Day Intensive", duration: 2, yourHours: 12, yourPercent: 75, basePrice: 3500, isIntensive: true },
+  { key: "1day", label: "1-Day Intensive", duration: 1, yourHours: 6, yourPercent: 75, basePrice: 2000, isIntensive: true },
+  { key: "custom", label: "Custom", duration: 0, yourHours: 0, yourPercent: 75, basePrice: null, isIntensive: false },
 ];
 
 export const DEFAULT_ADDONS: AddOn[] = [
@@ -52,4 +54,5 @@ export const DEFAULT_SETTINGS: Settings = {
   hourlyRate: 130,
   juniorCost: 35,
   customAddons: [],
+  projectTypes: DEFAULT_PROJECT_TYPES,
 };

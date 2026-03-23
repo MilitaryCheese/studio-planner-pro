@@ -1,4 +1,4 @@
-import { ScheduledProject } from "./types";
+import { ScheduledProject, ProjectType } from "./types";
 
 function addBusinessDays(startDate: Date, days: number): Date {
   const result = new Date(startDate);
@@ -22,8 +22,13 @@ export function formatDate(d: Date): string {
 export function findNextAvailableStart(
   existing: ScheduledProject[],
   duration: number,
+  projectTypes: ProjectType[],
+  newProjectType: string,
   preferredStart?: string
-): { startDate: string; endDate: string } {
+): { startDate: string; endDate: string } | null {
+  const newType = projectTypes.find((t) => t.key === newProjectType);
+  const newIsIntensive = newType?.isIntensive ?? false;
+
   let candidate = preferredStart ? parseDate(preferredStart) : new Date();
   // Ensure we start on a weekday
   while (candidate.getDay() === 0 || candidate.getDay() === 6) {
@@ -37,7 +42,16 @@ export function findNextAvailableStart(
     const endStr = formatDate(end);
 
     const conflict = existing.some((p) => {
-      return candidateStr <= p.endDate && endStr >= p.startDate;
+      const overlaps = candidateStr <= p.endDate && endStr >= p.startDate;
+      if (!overlaps) return false;
+
+      // Allow overlap if BOTH the new project and existing project are intensive
+      const existingType = projectTypes.find((t) => t.key === p.type);
+      const existingIsIntensive = existingType?.isIntensive ?? false;
+
+      if (newIsIntensive && existingIsIntensive) return false;
+
+      return true;
     });
 
     if (!conflict) {
@@ -50,9 +64,8 @@ export function findNextAvailableStart(
     }
   }
 
-  // Fallback
-  const end = addBusinessDays(candidate, duration - 1);
-  return { startDate: formatDate(candidate), endDate: formatDate(end) };
+  // Could not find a slot
+  return null;
 }
 
 export function getQuarterRange(year: number, quarter: number): { start: string; end: string } {
@@ -73,4 +86,21 @@ export function getBusinessDaysInRange(startStr: string, endStr: string): number
     current.setDate(current.getDate() + 1);
   }
   return count;
+}
+
+export function getMonthsInQuarter(year: number, quarter: number): { name: string; start: string; end: string }[] {
+  const startMonth = (quarter - 1) * 3;
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"];
+
+  return [0, 1, 2].map((offset) => {
+    const month = startMonth + offset;
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    return {
+      name: monthNames[month],
+      start: formatDate(start),
+      end: formatDate(end),
+    };
+  });
 }
