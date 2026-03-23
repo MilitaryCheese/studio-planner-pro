@@ -45,13 +45,8 @@ export function findNextAvailableStart(
       const overlaps = candidateStr <= p.endDate && endStr >= p.startDate;
       if (!overlaps) return false;
 
-      // Allow overlap if BOTH the new project and existing project are intensive
-      const existingType = projectTypes.find((t) => t.key === p.type);
-      const existingIsIntensive = existingType?.isIntensive ?? false;
-
-      if (newIsIntensive && existingIsIntensive) return false;
-
-      return true;
+      // Allow all overlaps - user will manage scheduling
+      return false;
     });
 
     if (!conflict) {

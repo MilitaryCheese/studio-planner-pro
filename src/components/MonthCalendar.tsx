@@ -50,7 +50,6 @@ export default function MonthCalendar({ month, projects, typeColors }: Props) {
             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
             const dayProjects = !isWeekend ? projectOnDate(dateStr) : [];
             const isToday = dateStr === formatDate(new Date());
-            const firstProject = dayProjects[0];
             const hasMultiple = dayProjects.length > 1;
 
             return (
@@ -61,16 +60,36 @@ export default function MonthCalendar({ month, projects, typeColors }: Props) {
                     ? "text-muted-foreground/30"
                     : isWeekend
                     ? "bg-muted/50 text-muted-foreground/50"
-                    : firstProject
-                    ? typeColors[firstProject.type] || "bg-secondary"
-                    : "hover:bg-secondary/50"
+                    : !dayProjects.length
+                    ? "hover:bg-secondary/50"
+                    : ""
                 } ${isToday ? "ring-2 ring-primary ring-inset rounded-sm" : ""}`}
                 title={dayProjects.length > 0 ? dayProjects.map((p) => `${p.name} (${p.type})`).join(", ") : dateStr}
               >
-                {day.getDate()}
-                {hasMultiple && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary" />
+                {dayProjects.length === 1 && (
+                  <div className={`absolute inset-0 ${typeColors[dayProjects[0].type] || "bg-secondary"} rounded-sm`} />
                 )}
+                {dayProjects.length === 2 && (
+                  <>
+                    <div className={`absolute top-0 left-0 right-0 h-1/2 ${typeColors[dayProjects[0].type] || "bg-secondary"} rounded-t-sm`} />
+                    <div className={`absolute bottom-0 left-0 right-0 h-1/2 ${typeColors[dayProjects[1].type] || "bg-secondary"} rounded-b-sm`} />
+                  </>
+                )}
+                {dayProjects.length >= 3 && (
+                  <>
+                    <div className={`absolute top-0 left-0 right-0 h-1/3 ${typeColors[dayProjects[0].type] || "bg-secondary"} rounded-t-sm`} />
+                    <div className={`absolute top-1/3 left-0 right-0 h-1/3 ${typeColors[dayProjects[1].type] || "bg-secondary"}`} />
+                    <div className={`absolute bottom-0 left-0 right-0 h-1/3 ${typeColors[dayProjects[2].type] || "bg-secondary"} rounded-b-sm`} />
+                  </>
+                )}
+                <span className="relative z-10">
+                  {day.getDate()}
+                  {dayProjects.length > 3 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary text-[8px] text-white flex items-center justify-center font-bold">
+                      {dayProjects.length}
+                    </span>
+                  )}
+                </span>
               </div>
             );
           })}
