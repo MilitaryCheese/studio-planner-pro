@@ -47,8 +47,8 @@ export default function Index() {
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-5xl flex items-center justify-between h-14 px-4">
-          <h1 className="text-lg font-bold tracking-tight">Second Society: Studio Planner</h1>
-          <img src="/logo.png" alt="Studio Logo" className="h-24 w-24 object-contain" />
+          <h1 className="text-lg font-bold tracking-tight">SS Studio Planner</h1>
+          <img src="/logo.png" alt="Studio Logo" className="h-12 w-24 object-contain" />
         </div>
       </header>
 
